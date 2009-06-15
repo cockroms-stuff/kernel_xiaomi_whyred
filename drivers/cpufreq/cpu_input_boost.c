@@ -12,6 +12,8 @@
 #include <linux/kthread.h>
 #include <linux/moduleparam.h>
 
+static unsigned int idle_min_freq_lp __read_mostly =
+	CONFIG_IDLE_MIN_FREQ_LP;
 static unsigned int input_boost_freq_lp __read_mostly =
 	CONFIG_INPUT_BOOST_FREQ_LP;
 static unsigned int input_boost_freq_hp __read_mostly =
@@ -30,6 +32,7 @@ static unsigned short input_boost_duration __read_mostly =
 static unsigned short wake_boost_duration __read_mostly =
 	CONFIG_WAKE_BOOST_DURATION_MS;
 
+module_param(idle_min_freq_lp, uint, 0644);
 module_param(input_boost_freq_lp, uint, 0644);
 module_param(input_boost_freq_hp, uint, 0644);
 module_param_named(remove_input_boost_freq_lp,
@@ -102,6 +105,16 @@ static unsigned int get_min_freq(struct cpufreq_policy *policy)
 	else
 		freq = boost_min_freq_hp;
 
+	return max(freq, policy->cpuinfo.min_freq);
+}
+
+static unsigned int get_idle_freq(struct cpufreq_policy *policy)
+{
+	unsigned int freq;
+ 
+	if (cpumask_test_cpu(policy->cpu, cpu_lp_mask))
+		freq = idle_min_freq_lp;
+ 
 	return max(freq, policy->cpuinfo.min_freq);
 }
 
@@ -228,7 +241,7 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 
 	/* Unboost when the screen is off */
 	if (test_bit(SCREEN_OFF, &b->state)) {
-		policy->min = get_min_freq(policy);
+		policy->min = get_idle_freq(policy);
 		return NOTIFY_OK;
 	}
 

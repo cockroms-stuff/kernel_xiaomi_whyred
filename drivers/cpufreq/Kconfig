@@ -277,6 +277,14 @@ config WAKE_BOOST_DURATION_MS
 	help
 	  Wake boost duration in milliseconds.
 
+config IDLE_MIN_FREQ_LP
+	int "Low-power cluster idle frequency"
+	default "0"
+	help
+	  Minimum frequency for the low-power CPU cluster during idle.
+	  The cluster will revert to this frequency when the display is
+	  turned off.
+
 config BASE_BOOST_FREQ_LP
 	int "Low-power cluster base frequency"
 	default "0"
