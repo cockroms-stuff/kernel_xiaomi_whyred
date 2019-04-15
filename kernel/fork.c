@@ -80,6 +80,8 @@
 #include <linux/kcov.h>
 #include <linux/cpufreq_times.h>
 #include <linux/simple_lmk.h>
+#include <linux/devfreq_boost.h>
+#include <linux/cpu_input_boost.h>
 
 #include <asm/pgtable.h>
 #include <asm/pgalloc.h>
@@ -1797,6 +1799,11 @@ long _do_fork(unsigned long clone_flags,
 	int trace = 0;
 	long nr;
 
+	/* Boost to the max for 3000 ms when userspace launches an app */
+	if (task_is_zygote(current)) {
+		devfreq_boost_kick_max(DEVFREQ_MSM_CPUBW, 3000);
+		powerhal_boost_kick_max(3000);
+	}
 	/*
 	 * Determine whether and which event to report to ptracer.  When
 	 * called from kernel_thread or CLONE_UNTRACED is explicitly
