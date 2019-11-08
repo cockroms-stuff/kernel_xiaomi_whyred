@@ -6,7 +6,11 @@
 #define _CPU_INPUT_BOOST_H_
 
 #ifdef CONFIG_CPU_INPUT_BOOST
+void powerhal_boost_kick(void);
+void powerhal_boost_kick_max(unsigned int duration_ms);
 #else
+static inline void powerhal_boost_kick(void) { }
+static inline void powerhal_boost_kick_max(unsigned int duration_ms) { }
 #endif
 
 #endif /* _CPU_INPUT_BOOST_H_ */

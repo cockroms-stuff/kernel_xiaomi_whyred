@@ -265,6 +265,12 @@ config CPU_INPUT_BOOST
 
 if CPU_INPUT_BOOST
 
+config POWERHAL_BOOST_DURATION_MS
+	int "powerHAL boost duration"
+	default "100"
+	help
+	 powerHAL boost duration in milliseconds.
+
 config IDLE_MIN_FREQ_LP
 	int "Low-power cluster idle frequency"
 	default "0"
