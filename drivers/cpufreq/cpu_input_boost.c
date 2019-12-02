@@ -13,6 +13,7 @@
 #include <linux/kthread.h>
 #include <linux/moduleparam.h>
 #include <linux/pm_qos.h>
+#include <linux/sched.h>
 
 static unsigned int idle_min_freq_lp __read_mostly =
 	CONFIG_IDLE_MIN_FREQ_LP;
@@ -196,6 +197,7 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	/* Unboost when the screen is off */
 	if (test_bit(SCREEN_OFF, &b->state)) {
 		policy->min = get_idle_freq(policy);
+		disable_schedtune_boost("top-app", true);
 		/* CPUBW unboost */
 		set_hyst_trigger_count_val(3);
 		set_hist_memory_val(20);
@@ -251,6 +253,7 @@ static int fb_notifier_cb(struct notifier_block *nb, unsigned long action,
 
 	/* Boost when the screen turns on and unboost when it turns off */
 	if (*blank == FB_BLANK_UNBLANK) {
+		disable_schedtune_boost("top-app", false);
 		clear_bit(SCREEN_OFF, &b->state);
 	} else {
 		set_bit(SCREEN_OFF, &b->state);
