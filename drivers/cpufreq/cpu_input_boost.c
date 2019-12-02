@@ -11,6 +11,7 @@
 #include <linux/input.h>
 #include <linux/kthread.h>
 #include <linux/moduleparam.h>
+#include <linux/sched.h>
 #include <linux/power_hal.h>
 
 static unsigned int input_boost_freq_lp __read_mostly =
@@ -295,6 +296,7 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	/* Unboost when the screen is off */
 	if (test_bit(SCREEN_OFF, &b->state)) {
 		policy->min = policy->cpuinfo.min_freq;
+		disable_schedtune_boost("top-app", true);
 		/* CPUBW unboost */
 		set_hyst_trigger_count_val(3);
 		set_hist_memory_val(20);
@@ -305,6 +307,7 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	/* Boost CPU to max frequency for max boost */
 	if (test_bit(MAX_BOOST, &b->state))
 		policy->min = get_max_boost_freq(policy);
+		disable_schedtune_boost("top-app", false);
 
 	/* Do powerhal boost for powerhal_max_boost */
 	if (test_bit(POWERHAL_MAX_BOOST, &b->state)) {
