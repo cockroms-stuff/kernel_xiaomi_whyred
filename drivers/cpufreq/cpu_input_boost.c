@@ -23,8 +23,10 @@ static unsigned int max_boost_freq_lp __read_mostly =
 static unsigned int max_boost_freq_hp __read_mostly =
 	CONFIG_MAX_BOOST_FREQ_PERF;
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 static unsigned short powerhal_boost_duration __read_mostly =
 	CONFIG_POWERHAL_BOOST_DURATION_MS;
+#endif /* IN_KERNEL_POWERHAL */
 static unsigned short input_boost_duration __read_mostly =
 	CONFIG_INPUT_BOOST_DURATION_MS;
 static unsigned short wake_boost_duration __read_mostly =
@@ -35,7 +37,9 @@ module_param(input_boost_freq_hp, uint, 0644);
 module_param(max_boost_freq_lp, uint, 0644);
 module_param(max_boost_freq_hp, uint, 0644);
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 module_param(powerhal_boost_duration, short, 0644);
+#endif /* IN_KERNEL_POWERHAL */
 module_param(input_boost_duration, short, 0644);
 module_param(wake_boost_duration, short, 0644);
 
@@ -48,28 +52,37 @@ enum {
 };
 
 struct boost_drv {
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 	struct delayed_work powerhal_unboost;
 	struct delayed_work powerhal_max_unboost;
+#endif /* IN_KERNEL_POWERHAL */
 	struct delayed_work input_unboost;
 	struct delayed_work max_unboost;
 	struct notifier_block cpu_notif;
 	struct notifier_block fb_notif;
 	wait_queue_head_t boost_waitq;
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 	atomic_long_t powerhal_max_boost_expires;
+#endif /* IN_KERNEL_POWERHAL */
 	atomic_long_t max_boost_expires;
 	unsigned long state;
 };
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 static void powerhal_unboost_worker(struct work_struct *work);
 static void powerhal_max_unboost_worker(struct work_struct *work);
+#endif /* IN_KERNEL_POWERHAL */
+
 static void input_unboost_worker(struct work_struct *work);
 static void max_unboost_worker(struct work_struct *work);
 
 static struct boost_drv boost_drv_g __read_mostly = {
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 	.powerhal_unboost = __DELAYED_WORK_INITIALIZER(boost_drv_g.powerhal_unboost,
 							powerhal_unboost_worker, 0),
 	.powerhal_max_unboost = __DELAYED_WORK_INITIALIZER(boost_drv_g.powerhal_max_unboost,
 							powerhal_max_unboost_worker, 0),
+#endif /* IN_KERNEL_POWERHAL */
 	.input_unboost = __DELAYED_WORK_INITIALIZER(boost_drv_g.input_unboost,
 						    input_unboost_worker, 0),
 	.max_unboost = __DELAYED_WORK_INITIALIZER(boost_drv_g.max_unboost,
@@ -114,6 +127,7 @@ static void update_online_cpu_policy(void)
 	put_online_cpus();
 }
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 static void __powerhal_boost_kick(struct boost_drv *b)
 {
 	if (test_bit(SCREEN_OFF, &b->state))
@@ -166,6 +180,7 @@ void powerhal_boost_kick_max(unsigned int duration_ms)
 
 	__powerhal_boost_kick_max(b, duration_ms);
 }
+#endif /* IN_KERNEL_POWERHAL */
 
 static void __cpu_input_boost_kick(struct boost_drv *b)
 {
@@ -220,6 +235,7 @@ void cpu_input_boost_kick_max(unsigned int duration_ms)
 	__cpu_input_boost_kick_max(b, duration_ms);
 }
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 static void powerhal_unboost_worker(struct work_struct *work)
 {
 	struct boost_drv *b = container_of(to_delayed_work(work),
@@ -237,6 +253,8 @@ static void powerhal_max_unboost_worker(struct work_struct *work)
 	clear_bit(POWERHAL_MAX_BOOST, &b->state);
 	wake_up(&b->boost_waitq);
 }
+
+#endif /* IN_KERNEL_POWERHAL */
 
 static void input_unboost_worker(struct work_struct *work)
 {
@@ -305,10 +323,15 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	}
 
 	/* Boost CPU to max frequency for max boost */
-	if (test_bit(MAX_BOOST, &b->state))
+	if (test_bit(MAX_BOOST, &b->state)) {
 		policy->min = get_max_boost_freq(policy);
 		disable_schedtune_boost("top-app", false);
+#ifndef CONFIG_IN_KERNEL_POWERHAL
+		return NOTIFY_OK;
+#endif /* IN_KERNEL_POWERHAL */
+	}
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 	/* Do powerhal boost for powerhal_max_boost */
 	if (test_bit(POWERHAL_MAX_BOOST, &b->state)) {
 		/* CPUBW boost */
@@ -322,6 +345,7 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	if (test_bit(MAX_BOOST, &b->state) ||
 		test_bit(POWERHAL_MAX_BOOST, &b->state))
 		return NOTIFY_OK;
+#endif /* IN_KERNEL_POWERHAL */
 
 	/*
 	 * Boost to policy->max if the boost frequency is higher. When
@@ -332,6 +356,7 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 	else
 		policy->min = policy->cpuinfo.min_freq;
 
+#ifdef CONFIG_IN_KERNEL_POWERHAL
 	if (test_bit(POWERHAL_BOOST, &b->state)) {
 		/* CPUBW boost */
 		set_hyst_trigger_count_val(0);
@@ -343,6 +368,7 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 		set_hist_memory_val(20);
 		set_hyst_length_val(10);
 	}
+#endif /* IN_KERNEL_POWERHAL */
 
 	return NOTIFY_OK;
 }
