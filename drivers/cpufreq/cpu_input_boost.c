@@ -12,6 +12,7 @@
 #include <linux/input.h>
 #include <linux/kthread.h>
 #include <linux/moduleparam.h>
+#include <linux/pm_qos.h>
 
 static unsigned int idle_min_freq_lp __read_mostly =
 	CONFIG_IDLE_MIN_FREQ_LP;
@@ -39,6 +40,7 @@ struct boost_drv {
 	wait_queue_head_t boost_waitq;
 	atomic_long_t powerhal_max_boost_expires;
 	unsigned long state;
+	struct pm_qos_request pm_qos_req;
 };
 
 static void powerhal_unboost_worker(struct work_struct *work);
@@ -207,6 +209,17 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 		set_hyst_trigger_count_val(0);
 		set_hist_memory_val(0);
 		set_hyst_length_val(0);
+		/*
+		 * max("wfi" latency-us val from dt) + 1 = 44
+		 * val + 1 to prevent CPU from entering lower idle
+		 * states than WFI.
+		 */
+		/* prevent CPU from entering deeper sleep states */
+		pm_qos_update_request(&b->pm_qos_req, 44);
+	} else {
+		/* Restore default CPU DMA Latency value */
+		pm_qos_update_request(&b->pm_qos_req,
+			PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE);
 	}
 
 	if (test_bit(POWERHAL_BOOST, &b->state)) {
@@ -335,6 +348,9 @@ static int __init cpu_input_boost_init(void)
 	struct task_struct *thread;
 	int ret;
 
+	pm_qos_add_request(&b->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
+		PM_QOS_CPU_DMA_LAT_DEFAULT_VALUE);
+
 	b->cpu_notif.notifier_call = cpu_notifier_cb;
 	ret = cpufreq_register_notifier(&b->cpu_notif, CPUFREQ_POLICY_NOTIFIER);
 	if (ret) {
@@ -372,6 +388,7 @@ unregister_handler:
 	input_unregister_handler(&cpu_input_boost_input_handler);
 unregister_cpu_notif:
 	cpufreq_unregister_notifier(&b->cpu_notif, CPUFREQ_POLICY_NOTIFIER);
+	pm_qos_remove_request(&b->pm_qos_req);
 	return ret;
 }
 subsys_initcall(cpu_input_boost_init);
