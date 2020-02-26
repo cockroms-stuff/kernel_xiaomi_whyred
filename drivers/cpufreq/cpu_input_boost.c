@@ -346,12 +346,12 @@ static int cpu_notifier_cb(struct notifier_block *nb, unsigned long action,
 		set_hist_memory_val(0);
 		set_hyst_length_val(0);
 		/*
-		 * max("wfi" latency-us val from dt) + 1 = 44
+		 * max("wfi" latency-us val from dt) + 1 = 43
 		 * val + 1 to prevent CPU from entering lower idle
 		 * states than WFI.
 		 */
 		/* prevent CPU from entering deeper sleep states */
-		pm_qos_update_request(&b->pm_qos_req, 44);
+		pm_qos_update_request(&b->pm_qos_req, 43);
 	} else {
 		/* Restore default CPU DMA Latency value */
 		pm_qos_update_request(&b->pm_qos_req,
